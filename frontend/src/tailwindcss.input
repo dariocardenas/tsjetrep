@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@source "./src/trep.html";
+
+:root, :host {
+    @apply bg-white text-black h-screen w-screen p-[0] m-[0] box-border;
+}
+
+body {
+    @apply h-[100vh] w-[100vw] p-[0] m-[0] box-border;
+}
