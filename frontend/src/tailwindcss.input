@@ -2,10 +2,6 @@
 
 @source "./src/trep.html";
 
-:root, :host {
-    @apply bg-white text-black h-screen w-screen p-[0] m-[0] box-border;
-}
-
-body {
-    @apply h-[100vh] w-[100vw] p-[0] m-[0] box-border;
+:root, :host, body {
+    @apply box-border flex flex-col h-screen m-0 overflow-hidden p-0 w-screen;
 }

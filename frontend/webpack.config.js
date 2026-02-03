@@ -23,6 +23,10 @@ module.exports = (env, argv) => ({
                 test: /\.css$/,
                 type: 'asset/source',
             },
+            {
+                test: /\.xml$/,
+                type: 'asset/source',
+            }
         ]
     },
     output: {

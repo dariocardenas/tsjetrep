@@ -1,6 +1,23 @@
-<div class="border-2 border-gray-200 flex flex-col h-full items-center justify-center m-[1rem] p-[1rem] rounded-lg shadow-lg">
-    <div class="text-2xl font-bold">TREP CTX Password Generator</div>
-    <div class="flex items-center justify-center m-4 p-4 rounded-lg shadow-lg">
-        <div class="text-2xl font-bold">TREP CTX Password Generator</div>
+<div
+    class="border-2 border-gray-200 flex flex-col gap-[1rem] grow-1 items-center m-[1rem] p-[1rem] rounded-lg shadow-lg">
+    <div class="border-gray-200 font-bold text-2xl text-center">TREP CTX Password Generator</div>
+    <div class="flex flex-row w-[50%]">
+        <label
+            class="bg-gray-700 border border-gray-400 font-bold min-w-[8rem] p-[0.5rem] rounded-l-lg text-right text-white">Configuración:</label>
+        <input type="file" id="conf" class="border border-l-0 rounded-r-lg border-gray-400 grow-1 p-[0.5rem]"
+            accept=".xml" />
+    </div>
+    <div class="flex flex-row w-[50%]">
+        <label
+            class="bg-gray-700 border border-gray-400 font-bold min-w-[8rem] p-[0.5rem] rounded-l-lg text-right text-white">Usuarios:</label>
+        <input type="file" id="users" class="border border-l-0 rounded-r-lg border-gray-400 grow-1 p-[0.5rem]"
+            accept=".csv" />
+    </div>
+    <div class="flex flex-row justify-center w-[50%]">
+        <button id="generate" type="button" disabled
+            class="border border-gray-400 cursor-pointer font-bold min-w-[8rem] p-[0.5rem] rounded-lg text-white
+                bg-gray-700 disabled:bg-white disabled:text-gray-300">
+            Generar
+        </button>
     </div>
 </div>

@@ -1,0 +1,12 @@
+	<user>
+		<scope>user</scope>
+		<sha512-hash/>
+		<descr><![CDATA[]]></descr>
+		<name/>
+		<expires/>
+		<dashboardcolumns>2</dashboardcolumns>
+		<authorizedkeys/>
+		<ipsecpsk/>
+		<webguicss>pfSense.css</webguicss>
+		<uid>2000</uid>
+	</user>
