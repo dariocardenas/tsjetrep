@@ -8,5 +8,5 @@
 		<authorizedkeys/>
 		<ipsecpsk/>
 		<webguicss>pfSense.css</webguicss>
-		<uid>2000</uid>
+		<uid/>
 	</user>
