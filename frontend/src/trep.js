@@ -5,6 +5,7 @@
  * password with SHA-512 crypt ($6$), and generates a merged config XML for download.
  * Hashing runs with limited concurrency and yields to the event loop so the UI
  * stays responsive and a progress counter updates as each hash completes.
+ * Selecting a new CSV file cancels any in-progress hashing operation.
  */
 import html from './trep.html';
 import css from './trep.css';
@@ -12,6 +13,8 @@ import user from './user.xml';
 
 document.addEventListener('DOMContentLoaded', async () => {
     let confInput, conf = null, counter, ctr, enableButton, usersInput, users = null, generateButton;
+    /** AbortController for cancelling in-progress hashing when a new file is selected. */
+    let hashAbortController = null;
     document.body.replaceChildren(...new DOMParser().parseFromString(html, 'text/html').body.children);
     document.adoptedStyleSheets = [await (new CSSStyleSheet()).replace(css)];
 
@@ -20,7 +23,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     usersInput = document.querySelector('#users');
     generateButton = document.querySelector('#generate');
 
-    /** Generate merged config: clone user template per CSV row, fill hashes/uids, then trigger XML download. */
+    /**
+     * Generate merged config XML: clone user template per CSV row, fill hashes/uids,
+     * then trigger download. Each user gets a sequential UID starting from 2000.
+     */
     generateButton.addEventListener('click', () => {
         let userXml = new DOMParser().parseFromString(user, 'text/xml').documentElement,
             nextuid = conf.querySelector('nextuid'), minuid = 2000,
@@ -60,9 +66,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         ctr.textContent = `Generando claves de usuarios: ${processed}/${total}`;
     };
 
-    /** Load config XML; strip existing ctxNN users. */
+    /**
+     * Load config XML file. Strips existing ctxNN users (e.g., ctx1, ctx2, ...)
+     * before merging new users.
+     */
     confInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
+        conf = null;
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -71,6 +81,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 enableButton();
             };
             reader.readAsText(file, 'utf-8');
+        } else {
+            enableButton();
         }
     });
 
@@ -79,26 +91,61 @@ document.addEventListener('DOMContentLoaded', async () => {
      * with sha512_crypt, update counter only when a hash is returned, and yield
      * after each update so the browser can paint. Concurrency is limited to avoid
      * freezing on large files.
+     *
+     * Cancellation: If a new file is selected while hashing is in progress, the
+     * previous operation is aborted via AbortController. Workers check the signal
+     * before and after each hash, and throw 'Cancelled' if aborted. The catch block
+     * resets state and hides the counter. The finally block clears the controller
+     * only if it's still the same one (to avoid clearing a newer controller if
+     * the user selected yet another file during the abort).
      */
     usersInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
+        users = null;
+        // Cancel previous hashing operation if still running
+        if (hashAbortController) {
+            hashAbortController.abort();
+            hashAbortController = null;
+        }
         if (file) {
             const reader = new FileReader();
             reader.onload = async (e) => {
+                // Create new AbortController for this operation
+                hashAbortController = new AbortController();
+                const signal = hashAbortController.signal;
                 const lines = e.target.result.split('\n').filter(line => line.trim() !== '').slice(1);
                 let processedCount = 0;
-                users = await mapWithConcurrency(lines, HASH_CONCURRENCY, async (line) => {
-                    let user, password, hashedPassword;
-                    [user, password] = line.split(',');
-                    hashedPassword = await sha512_crypt(password);
-                    processedCount += 1;
-                    counter({ total: lines.length, processed: processedCount });
-                    await new Promise(r => setTimeout(r, 0)); // yield so the browser can paint
-                    return { user, hashedPassword };
-                });
-                enableButton();
+                try {
+                    users = await mapWithConcurrency(lines, HASH_CONCURRENCY, async (line) => {
+                        if (signal.aborted) throw new Error('Cancelled');
+                        let user, password, hashedPassword;
+                        [user, password] = line.split(',');
+                        hashedPassword = await sha512_crypt(password);
+                        if (signal.aborted) throw new Error('Cancelled');
+                        processedCount += 1;
+                        counter({ total: lines.length, processed: processedCount });
+                        await new Promise(r => setTimeout(r, 0)); // yield so the browser can paint
+                        return { user, hashedPassword };
+                    }, signal);
+                    enableButton();
+                } catch (err) {
+                    if (err.message === 'Cancelled') {
+                        // Operation was cancelled, reset state
+                        users = null;
+                        counter({ total: lines.length, processed: 0 });
+                    } else {
+                        throw err;
+                    }
+                } finally {
+                    // Only clear if this is still the current operation (not superseded by a newer file)
+                    if (hashAbortController?.signal === signal) {
+                        hashAbortController = null;
+                    }
+                }
             };
             reader.readAsText(file);
+        } else {
+            enableButton();
         }
     });
 });
@@ -110,18 +157,25 @@ const HASH_CONCURRENCY = 4;
  * Map over an array with a concurrency limit (worker pool). At most `limit` calls
  * to `fn` run at once; when one completes, the next item is started. Preserves
  * result order. Used so hashing many rows does not block the main thread.
+ * Supports cancellation via AbortSignal.
  *
  * @param {Array<T>} array - Input array
  * @param {number} limit - Max concurrent async operations
  * @param {function(T, number): Promise<R>} fn - Async mapper (element, index) -> result
+ * @param {AbortSignal} [signal] - Optional abort signal to cancel the operation
  * @returns {Promise<R[]>} Results in same order as array
  * @template T,R
  */
-async function mapWithConcurrency(array, limit, fn) {
+async function mapWithConcurrency(array, limit, fn, signal = null) {
     const results = [];
     let idx = 0;
+    /**
+     * Worker function: each worker pulls the next index atomically and processes
+     * that element. Workers run concurrently up to `limit`, sharing the `idx` counter.
+     */
     async function worker() {
         while (idx < array.length) {
+            if (signal?.aborted) throw new Error('Cancelled');
             const i = idx++;
             results[i] = await fn(array[i], i);
         }
