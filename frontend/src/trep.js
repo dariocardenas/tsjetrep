@@ -1,7 +1,10 @@
 /**
  * Trep — config generator UI.
- * Loads a config XML and a CSV of users, hashes passwords with SHA-512 crypt ($6$),
- * and generates a merged config XML for download.
+ *
+ * Loads a config XML and a CSV of users (user,password per line), hashes each
+ * password with SHA-512 crypt ($6$), and generates a merged config XML for download.
+ * Hashing runs with limited concurrency and yields to the event loop so the UI
+ * stays responsive and a progress counter updates as each hash completes.
  */
 import html from './trep.html';
 import css from './trep.css';
@@ -11,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let confInput, conf = null, counter, ctr, enableButton, usersInput, users = null, generateButton;
     document.body.replaceChildren(...new DOMParser().parseFromString(html, 'text/html').body.children);
     document.adoptedStyleSheets = [await (new CSSStyleSheet()).replace(css)];
+
     ctr = document.querySelector('#counter');
     confInput = document.querySelector('#conf');
     usersInput = document.querySelector('#users');
@@ -43,8 +47,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         a.click();
     });
 
+    /** Enable generate button only when both config and users are loaded. */
     enableButton = () => { generateButton.disabled = !conf || !users; };
 
+    /**
+     * Update progress counter in the UI. Shown only while 0 < processed < total.
+     * @param {{ total: number, processed: number }} data
+     */
     counter = (data) => {
         let { total, processed } = data;
         processed > 0 && processed < total ? ctr.classList.remove('hidden') : ctr.classList.add('hidden');
@@ -65,7 +74,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    /** Load users CSV (header row skipped); hash each password and store { user, hashedPassword }. */
+    /**
+     * Load users CSV (header row skipped; empty lines ignored). Hash each password
+     * with sha512_crypt, update counter only when a hash is returned, and yield
+     * after each update so the browser can paint. Concurrency is limited to avoid
+     * freezing on large files.
+     */
     usersInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -78,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     [user, password] = line.split(',');
                     hashedPassword = await sha512_crypt(password);
                     processedCount += 1;
-                    counter({ total: lines.length, processed: processedCount })
+                    counter({ total: lines.length, processed: processedCount });
                     await new Promise(r => setTimeout(r, 0)); // yield so the browser can paint
                     return { user, hashedPassword };
                 });
@@ -93,11 +107,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 const HASH_CONCURRENCY = 4;
 
 /**
- * Map over array with a concurrency limit. Preserves order.
- * @param {Array<T>} array
- * @param {number} limit
- * @param {function(T, number): Promise<R>} fn
- * @returns {Promise<R[]>}
+ * Map over an array with a concurrency limit (worker pool). At most `limit` calls
+ * to `fn` run at once; when one completes, the next item is started. Preserves
+ * result order. Used so hashing many rows does not block the main thread.
+ *
+ * @param {Array<T>} array - Input array
+ * @param {number} limit - Max concurrent async operations
+ * @param {function(T, number): Promise<R>} fn - Async mapper (element, index) -> result
+ * @returns {Promise<R[]>} Results in same order as array
  * @template T,R
  */
 async function mapWithConcurrency(array, limit, fn) {
@@ -154,6 +171,7 @@ function b64From24bit(b2, b1, b0, n) {
 /**
  * Compute a SHA-512 crypt hash in glibc format ($6$salt$hash).
  * Compatible with Linux crypt(3), /etc/shadow, and mkpasswd -m sha-512.
+ * CPU-heavy (5000 rounds); run with limited concurrency to keep the UI responsive.
  *
  * @param {string} password - Password to hash
  * @param {string|null} [salt=null] - Salt (up to 16 chars from [./0-9A-Za-z]). If omitted, a random salt is generated.
