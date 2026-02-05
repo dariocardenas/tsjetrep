@@ -1,21 +1,23 @@
 <div
-    class="border-2 border-gray-200 flex flex-col gap-[1rem] grow-1 items-center m-[1rem] p-[1rem] rounded-lg shadow-lg">
+    class="border-2 border-gray-200 flex flex-col gap-[1rem] items-center m-[1rem] p-[1rem] relative rounded-lg shadow-lg">
     <div class="border-gray-200 font-bold text-2xl text-center">TREP CTX Password Generator</div>
-    <div class="flex flex-row w-[50%]">
+    <div class="absolute bg-black hidden m-0 font-bold px-[1rem] py-[0.5rem] right-2 rounded-lg shadow-lg text-white top-2"
+        id="counter">
+        Generando claves de usuarios: 0/0</div>
+    <div class="flex lg:flex-row flex-col rounded-lg lg:shadow-lg">
         <label
-            class="bg-gray-700 border border-gray-400 font-bold min-w-[8rem] p-[0.5rem] rounded-l-lg text-right text-white">Configuración:</label>
-        <input type="file" id="conf" class="border border-l-0 rounded-r-lg border-gray-400 grow-1 p-[0.5rem]"
+            class="lg:bg-gray-700 lg:border lg:border-gray-400 font-bold lg:min-w-[8rem] p-[0.5rem] rounded-l-lg lg:text-right lg:text-white">Configuración:</label>
+        <input type="file" id="conf" class="border lg:border-l-0 border-gray-400 p-[0.5rem] rounded-lg lg:rounded-r-lg lg:rounded-l-none"
             accept=".xml" />
     </div>
-    <div class="flex flex-row w-[50%]">
+    <div class="flex lg:flex-row flex-col rounded-lg lg:shadow-lg">
         <label
-            class="bg-gray-700 border border-gray-400 font-bold min-w-[8rem] p-[0.5rem] rounded-l-lg text-right text-white">Usuarios:</label>
-        <input type="file" id="users" class="border border-l-0 rounded-r-lg border-gray-400 grow-1 p-[0.5rem]"
+            class="lg:bg-gray-700 lg:border lg:border-gray-400 font-bold lg:min-w-[8rem] p-[0.5rem] rounded-l-lg lg:text-right lg:text-white">Usuarios:</label>
+        <input type="file" id="users" class="border lg:border-l-0 border-gray-400 p-[0.5rem] rounded-lg lg:rounded-r-lg lg:rounded-l-none"
             accept=".csv" />
     </div>
     <div class="flex flex-row justify-center w-[50%]">
-        <button id="generate" type="button" disabled
-            class="border border-gray-400 cursor-pointer font-bold min-w-[8rem] p-[0.5rem] rounded-lg text-white
+        <button id="generate" type="button" disabled class="border border-gray-400 cursor-pointer font-bold min-w-[8rem] p-[0.5rem] rounded-lg text-white
                 bg-gray-700 disabled:bg-white disabled:text-gray-300">
             Generar
         </button>

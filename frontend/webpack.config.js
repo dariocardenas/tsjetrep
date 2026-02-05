@@ -32,6 +32,7 @@ module.exports = (env, argv) => ({
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: argv.mode === 'production' ? '[name].[contenthash].js' : '[name].js',
+        clean: true,
     },
     plugins: [
         new HtmlWebpackPlugin({

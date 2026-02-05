@@ -8,9 +8,10 @@ import css from './trep.css';
 import user from './user.xml';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    let confInput, conf = null, enableButton, usersInput, users = null, generateButton;
+    let confInput, conf = null, counter, ctr, enableButton, usersInput, users = null, generateButton;
     document.body.replaceChildren(...new DOMParser().parseFromString(html, 'text/html').body.children);
     document.adoptedStyleSheets = [await (new CSSStyleSheet()).replace(css)];
+    ctr = document.querySelector('#counter');
     confInput = document.querySelector('#conf');
     usersInput = document.querySelector('#users');
     generateButton = document.querySelector('#generate');
@@ -44,6 +45,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     enableButton = () => { generateButton.disabled = !conf || !users; };
 
+    counter = (data) => {
+        let { total, processed } = data;
+        processed > 0 && processed < total ? ctr.classList.remove('hidden') : ctr.classList.add('hidden');
+        ctr.textContent = `Generando claves de usuarios: ${processed}/${total}`;
+    };
+
     /** Load config XML; strip existing ctxNN users. */
     confInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
@@ -64,19 +71,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (file) {
             const reader = new FileReader();
             reader.onload = async (e) => {
-                users = await Promise.all(e.target.result.split('\n').slice(1)
-                    .map(async (line) => {
-                        let user, password, hashedPassword;
-                        [user, password] = line.split(',');
-                        hashedPassword = await sha512_crypt(password);
-                        return { user, hashedPassword };
-                    }));
+                const lines = e.target.result.split('\n').filter(line => line.trim() !== '').slice(1);
+                let processedCount = 0;
+                users = await mapWithConcurrency(lines, HASH_CONCURRENCY, async (line) => {
+                    let user, password, hashedPassword;
+                    [user, password] = line.split(',');
+                    hashedPassword = await sha512_crypt(password);
+                    processedCount += 1;
+                    counter({ total: lines.length, processed: processedCount })
+                    await new Promise(r => setTimeout(r, 0)); // yield so the browser can paint
+                    return { user, hashedPassword };
+                });
                 enableButton();
             };
             reader.readAsText(file);
         }
     });
 });
+
+/** Max number of sha512_crypt calls in flight at once (avoids freezing UI on large CSVs). */
+const HASH_CONCURRENCY = 4;
+
+/**
+ * Map over array with a concurrency limit. Preserves order.
+ * @param {Array<T>} array
+ * @param {number} limit
+ * @param {function(T, number): Promise<R>} fn
+ * @returns {Promise<R[]>}
+ * @template T,R
+ */
+async function mapWithConcurrency(array, limit, fn) {
+    const results = [];
+    let idx = 0;
+    async function worker() {
+        while (idx < array.length) {
+            const i = idx++;
+            results[i] = await fn(array[i], i);
+        }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, array.length) }, () => worker()));
+    return results;
+}
 
 /** Unix crypt base64 alphabet (glibc): ./0-9A-Za-z */
 const B64 = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
