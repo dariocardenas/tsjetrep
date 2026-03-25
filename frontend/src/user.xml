@@ -1,6 +1,6 @@
 	<user>
 		<scope>user</scope>
-		<sha512-hash/>
+		<bcrypt-hash/>
 		<descr><![CDATA[]]></descr>
 		<name/>
 		<expires/>
