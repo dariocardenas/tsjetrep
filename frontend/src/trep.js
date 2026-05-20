@@ -9,8 +9,12 @@ import html from './trep.html';
 import css from './trep.css';
 import user from './user.xml';
 
+const TREP_BCRYPT_ENDPOINT = location.hostname === 'localhost' ? null : `${location.protocol}//${location.host}/hashcsv`;
+
 const DEFAULT_BCRYPT_ENDPOINT = 'http://localhost:8787/hashcsv';
-const BCRYPT_ENDPOINT = globalThis.TREP_BCRYPT_ENDPOINT ?? DEFAULT_BCRYPT_ENDPOINT;
+const BCRYPT_ENDPOINT = TREP_BCRYPT_ENDPOINT ?? DEFAULT_BCRYPT_ENDPOINT;
+
+console.log('BCRYPT_ENDPOINT', BCRYPT_ENDPOINT);
 
 document.addEventListener('DOMContentLoaded', async () => {
     let confInput, conf = null, counter, ctr, enableButton, usersInput, users = null, generateButton;

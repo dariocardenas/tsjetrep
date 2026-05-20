@@ -7,7 +7,7 @@ const app = express();
 // Keep it simple: accept CSV as plain text in POST body.
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://noc-trep-ctx.tsje.gov.py'],
     methods: ['POST', 'OPTIONS'],
   })
 );
@@ -60,6 +60,10 @@ app.post('/hashcsv', async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err?.message ?? String(err) });
   }
+});
+
+app.get('/hashcsv', (req, res) => {
+  res.send('Hello World');
 });
 
 const port = Number(process.env.PORT ?? 8787);
